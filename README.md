@@ -5,7 +5,7 @@ The Okta Administration Manager (OAM) allows sys admins to perform REST API call
 
 ### Current List of Supported Okta APIs
 * Users API
-* That's it... working on more, I promise.
+* Groups API
 
 ### Configuration Steps
 1. Download oam.py, config.json, and requirements.txt
@@ -30,16 +30,16 @@ Example Command:
 This command would loop through the test.csv file for each record in the file, and replace the ~email, ~phone, and ~cellphone variables with the values from the columns containing the same name.
 
 Example CSV file:
-|userID|email|phone|cellphone|
-|---|---|---|---|
-|1|foo@bar.com|111-111-1111|222-222-2222|
-|2|bar@foo.com|333-333-3333|444-444-4444|
+```
+userID,email,phone,cellphone
+1,"foo@bar.com","111-111-1111","222-222-2222"
+2,"bar@foo.com","333-333-3333","444-444-4444"
+```
+
 
 
 #### User API
-There are two commands relating to the Users API **user** and **create**.
-##### User
-The user command will perform actions against a non-deactivated user. The _user_ command has two required, positional arguments:
+The user command will perform actions against a single user. The _user_ command has two required, positional arguments:
 * Username: Okta username of the target user
 * Action: The command action you wish to perform. The following actions are currently supported:
 	* find - Returns the full user profile for Username as json in command window
@@ -60,20 +60,25 @@ The user command will perform actions against a non-deactivated user. The _user_
 	* setQuestion - [Set Recovery Question & Answer](http://developer.okta.com/docs/api/resources/users.html#set-recovery-question--answer) _--question_ and _--answer_ flags are used to provide the desired question and answer values
 	* update - [Update Profile](http://developer.okta.com/docs/api/resources/users.html#update-profile-1) _--profile_ flag allows for sending attribute: value pairs. The attribute, as it is shown in okta, should be listed first, and the value you wish to send second. Example:
 	```user foo.bar update --profile email foo.bar@acme.com city Lawrence state KS```
+    * create - [Create User](http://developer.okta.com/docs/api/resources/users.html#create-user) _--firstName_ & _--lastName_ are required and the Username value is used for the login attribute value. Optional arguments for the create action are:
+        * ```--email``` - Specify email address for the user. If not specified email is set to same as login value.
+        * ```--activate``` - Activate the user after creation
+        * ```--password``` - Specify a password for the new user
+        * ```--question``` - Specify a security question for the new user
+        * ```--answer``` - Specify a security answer for the new user
 
-##### Create
-Allows for the creation of new user accounts in Okta.
-The _create_ command has three required, positional arguments:
-* First Name: The first name of the user you wish to create.
-* Last Name: The last name of the user you wish to create.
-* Email: The email of the user you wish to create.
-
-_create_ has five optional arguments:
-* ```--login``` - Specify a login for the user. If none provided email is used.
-* ```--activate``` - Activate the user after creation
-* ```--password``` - Specify a password for the new user.
-* ```--question``` - Specify a security question for the new user.
-* ```--answer``` - Specify a security answer for the new user.
+##### Groups API
+The group command will perform actions against a single group. The _group_ command has two required, positional arguments:
+* Group Name: Okta group name of the target group
+* Action: The command action you wish to perform. The following actions are currently supported:
+    * create - [Add Group](http://developer.okta.com/docs/api/resources/groups.html#add-group) _--description_ is optional and provides the description value for the group
+    ```group NewGroup create --description "This is my new group"```
+    * update - [Update Group](http://developer.okta.com/docs/api/resources/groups.html#update-group) _--description_ is optional and provides the description value for the group
+    * listUsers - [List Group Members](http://developer.okta.com/docs/api/resources/groups.html#list-group-members) Returns list of users in the specified group as json in command window (limit of 10,000 users)
+    * addUser - [Add User to Group](http://developer.okta.com/docs/api/resources/groups.html#add-user-to-group) _--user_ is required and provides the login of the user you wish to add to the group
+    ```group MyGroup addUser --user foo@acme.com```
+    * removeUser - [Remove User from Group](http://developer.okta.com/docs/api/resources/groups.html#remove-user-from-group) _--user_ is required and provides the login of the user you wish to remove from the group
+    * delete - [Remove Group](http://developer.okta.com/docs/api/resources/groups.html#remove-group) Prompts for confirmation.
 
 ### Multi-site config.json Setup
 The config.json file can store multiple Okta sites and API tokens. Such as your key for okta and oktapreview sites. To setup multi-site:
