@@ -8,9 +8,10 @@ import os.path
 import re
 import requests
 import sys
+from okta_api_reference import users_apiRef, groups_apiRef
 
 ### Variables ###
-SCRIPT_VERSION = '0.2'
+SCRIPT_VERSION = '0.3'
 CONFIG_FILE = 'config.json' # Must be json
 ORG_URL = '' # Placeholder defined in configLoader function
 REQHEADERS = '' # Placeholder defined in configLoader function
@@ -69,15 +70,19 @@ def inputs():
 	userParser.add_argument( '--sendEmail', dest='varSendEmail', action='store_true', help='Alert the target user of the change made' )
 	userParser.add_argument( '--profile', nargs='+', dest='varProfile', action='store', help='Update profile attributes in Okta' )
 	userParser.add_argument( '--activate', dest='varActivate', action='store_true', help='Activate user after creation' )
-	userParser.add_argument( '--firstName', dest='varFirstname', action='store', help='Activate user after creation' )
-	userParser.add_argument( '--lastName', dest='varLastname', action='store', help='Activate user after creation' )
-	userParser.add_argument( '--email', dest='varEmail', action='store', help='Activate user after creation' )
+	userParser.add_argument( '--firstName', dest='varFirstname', action='store', help='Specify firstName attribute when creating a user' )
+	userParser.add_argument( '--lastName', dest='varLastname', action='store', help='Specify lastName attribute when creating a user' )
+	userParser.add_argument( '--email', dest='varEmail', action='store', help='Specify email attribute when creating a user' )
 
 	groupParser = subparsers.add_parser( 'group', help='Perform actions on Okta groups' )
 	groupParser.add_argument( 'varGroupName', action='store', help='Action to take on the indicated group' )
 	groupParser.add_argument( 'varAction', action='store', help='Action to take on the indicated group' )
 	groupParser.add_argument( '--description', dest='varGroupDesc', action='store', help='Set the group name at creation' )
 	groupParser.add_argument( '--user', dest='varUsername', action='store', help='The user login to add or remove from the indicated group' )
+
+	# listParser = subparsers.add_parser( 'list', help='List specified items')
+	# listParser.add_argument( 'objectType', action='store', help='The itmes to include in your list (e.g. groups, users, etc)')
+	# listParser.add_argument( '--criteria', dest='listcrit', action='store', help='Additional search criteria used to narrow results')
 
 	args = parser.parse_args()
 	if not args.varSite and MULTI_SITE == 1:
@@ -130,127 +135,33 @@ def csvCommandList( args ):
 
 	return inputList
 
-def findUser( searchParam ):
-	apiCall = ORG_URL + '/api/v1/users?filter=profile.login eq "' + searchParam + '"'
-	r = requests.get( apiCall, headers=REQHEADERS )
-
-	if len( r.json() ) == 1:
-		return r.json()
-	else:
-		print("Error: User not found")
-		sys.exit(0)
-
-def findGroup( searchParam ):
-	apiCall = ORG_URL + '/api/v1/groups?q=' + searchParam
-	r = requests.get( apiCall, headers=REQHEADERS )
-
-	if len( r.json() ) == 1:
-		return r.json()
-	else:
-		print("Error: Group not found")
-		sys.exit(0)
-
-## User & Create API Reference ##
-def createUser_postBody( args ):
-	if not args['varFirstname'] and not args['varLastname']:
-		print("Error! Required field not provided.\nCreate action requires firstName and lastName attributes")
-		sys.exit(1)
-	else:
-		if not args['varEmail']:
-			myVarEmail = args['varUsername']
-		else:
-			myVarEmail = args['varEmail']
-
-		myPostBody = {"profile": {"firstName": args['varFirstname'],"lastName": args['varLastname'],"email": myVarEmail,"login": args['varUsername']}}
-		
-		## Password Only ##
-		if args['varPassword'] and not args['varSecQ']:
-			myPostBody.update( password_postBody( args ) )
-		## Password and Security Question ##
-		elif args['varPassword'] and args['varSecQ']:
-			myPostBody.update( password_postBody( args ) )
-			myPostBody["credentials"].update( recoveryQ_postBody( args ) )
-		## Security Question Only ##
-		elif args['varSecQ'] and not args['varPassword']:
-			myPostBody.update({"credentials"})
-			myPostBody.append( recoveryQ_postBody( args ) )
-
-		return myPostBody
-
-def password_postBody( args ):
-	return {"credentials": {"password" : { "value": args['varPassword'] }}}
-
-def recoveryQ_postBody( args ):
-	return {"recovery_question": {"question": args['varSecQ'],"answer": args['varSecA']}}
-
-def profileUpdate_postBody( args ):
-	if args['varProfile']:
-		myPostBody = {}
-		myPostBody["profile"] = dict(args['varProfile'][i:i+2] for i in range(0, len(args['varProfile']), 2))
-
-		return myPostBody
-
-def user_curlDict( args, var_userID ):
-	return {
-		'appLinks': {'RequestType':'GET','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/appLinks'}, 
-		'groups': {'RequestType':'GET','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/groups'}, 
-		'delete': {'RequestType':'DELETE','APICall':ORG_URL + '/api/v1/users/' + var_userID,'ConfirmationRequired':'Y'}, 
-		'clear_user_sessions': {'RequestType':'DELETE','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/sessions','ConfirmationRequired':'Y'}, 
-		'forgot_password': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/credentials/forgot_password?sendEmail=' + str( args['varSendEmail'] )},
-		'activate': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/activate?sendEmail=' + str( args['varSendEmail'] )},
-		'reset_password': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/reset_password?sendEmail=' + str( args['varSendEmail'] )},
-		'setTempPassword': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/expire_password?tempPassword=true'},
-		'deactivate': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/deactivate','ConfirmationRequired':'Y'},
-		'unlock': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/unlock'},
-		'expire_password': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/expire_password'},
-		'suspend': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/suspend'},
-		'reset_factors': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/reset_factors'},
-		'unsuspend': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID + '/lifecycle/unsuspend'},
-		'setPassword': {'RequestType':'PUT','APICall':ORG_URL + '/api/v1/users/' + var_userID,'PostBody':password_postBody( args )},
-		'setQuestion': {'RequestType':'PUT','APICall':ORG_URL + '/api/v1/users/' + var_userID,'PostBody':recoveryQ_postBody( args )},
-		'update': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/users/' + var_userID,'PostBody':profileUpdate_postBody( args )},
-	}
-
-## Groups API Reference ##
-def group_postBody( args ):
-	return {"profile":{"name": args['varGroupName'],"description": args['varGroupDesc']}}
-
-def groups_curlDict( args, var_groupID='', var_userID='' ):
-	return {
-		'create': {'RequestType':'POST','APICall':ORG_URL + '/api/v1/groups','PostBody':group_postBody( args )},
-		'update': {'RequestType':'PUT','APICall':ORG_URL + '/api/v1/groups/' + var_groupID,'PostBody':group_postBody( args )},
-		'listUsers': {'RequestType':'GET','APICall':ORG_URL + '/api/v1/groups/' + var_groupID + '/users'}, # Needs pagination support for groups larger than 10k
-		# 'listGroups': {'RequestType':'GET','APICall':ORG_URL + '/api/v1/groups/'}, # Needs pagination support for lists larger than 10k groups
-		'addUser': {'RequestType':'PUT','APICall':ORG_URL + '/api/v1/groups/' + var_groupID + '/users/' + var_userID},
-		'removeUser': {'RequestType':'DELETE','APICall':ORG_URL + '/api/v1/groups/' + var_groupID + '/users/' + var_userID,'ConfirmationRequired':'Y'},
-		'delete': {'RequestType':'DELETE','APICall':ORG_URL + '/api/v1/groups/' + var_groupID,'ConfirmationRequired':'Y'}
-	}
-
-def httpRequestor( args, curlDict ):
+def httpRequestor( myAction, apiRef ):
 	try:
-		myAction = curlDict[args['varAction']]
-	except:
-		print "Action Unknown" + args['varAction']
-		sys.exit(1)
-
-
-	if 'ConfirmationRequired' in myAction:
-		varContinue = actionConfirm( "This action: " + args['varAction'] + "  can not be undone. Are you sure you wish to continue?" )
+		varContinue = actionConfirm( "This action: " + myAction + "  can not be undone. Are you sure you wish to continue?", apiRef.ConfirmationRequired )
 		if varContinue == False:
 			return "Action Cancelled"
+	except:
+		pass
 
 	s = requests.Session()
-	if 'PostBody' in myAction:
-		req = requests.Request( myAction['RequestType'],  myAction['APICall'], headers=REQHEADERS, json=myAction['PostBody'] )
-	else:
-		req = requests.Request( myAction['RequestType'],  myAction['APICall'], headers=REQHEADERS )
+	try:
+		req = requests.Request( apiRef.RequestType,  apiRef.APICall, headers=REQHEADERS, json=apiRef.PostBody )
+	except:
+		req = requests.Request( apiRef.RequestType,  apiRef.APICall, headers=REQHEADERS )
 
 	prepped = s.prepare_request( req )
 	r = s.send( prepped )
 
-	return r
+	if myAction == 'find':
+		if len( r.json() ) == 1:
+			return r.json()
+		else:
+			print "Error: " + apiRef.__doc__ + " not found"
+			sys.exit(0)
+	else:
+		return r
 
-def actionConfirm( varQuestion ):
+def actionConfirm( varQuestion, confirmRequired ):
 	valid = {"yes": True, "y": True, "ye": True, "no": False, "n": False}
 	prompt = " [yes/no] "
 
@@ -261,63 +172,136 @@ def actionConfirm( varQuestion ):
 	else:
 	    sys.stdout.write("Please respond with 'yes' or 'no'\n")
 
+def user_commandProc( args ):
+	usrObj = users_apiRef( orgURL=ORG_URL )
+	if args['varAction'] == 'create':
+		usrObj.createUser( args )
+	else:
+		usrObj.findUser( args['varUsername'] )
+		myUser = httpRequestor( 'find', usrObj )
+
+		if args['varAction'] == "find":
+			print json.dumps( myUser, sort_keys=True, indent=4, separators=( ',', ':' ) )
+			sys.exit(0)
+		elif args['varAction'] == 'appLinks':
+			usrObj.appLinks( myUser[0]["id"] )
+		elif args['varAction'] == 'groups':
+			usrObj.groups( myUser[0]["id"] )
+		elif args['varAction'] == 'delete':
+			usrObj.delete( myUser[0]["id"] )
+		elif args['varAction'] == 'clear_user_sessions':
+			usrObj.clear_user_sessions( myUser[0]["id"] )
+		elif args['varAction'] == 'forgot_password':
+			usrObj.forgot_password( myUser[0]["id"], args['varSendEmail'] )
+		elif args['varAction'] == 'activate':
+			usrObj.activate( myUser[0]["id"], args['varSendEmail'] )
+		elif args['varAction'] == 'reset_password':
+			usrObj.reset_password( myUser[0]["id"], args['varSendEmail'] )
+		elif args['varAction'] == 'setTempPassword':
+			usrObj.setTempPassword( myUser[0]["id"] )
+		elif args['varAction'] == 'deactivate':
+			usrObj.deactivate( myUser[0]["id"] )
+		elif args['varAction'] == 'unlock':
+			usrObj.unlock( myUser[0]["id"] )
+		elif args['varAction'] == 'expire_password':
+			usrObj.expire_password( myUser[0]["id"] )
+		elif args['varAction'] == 'suspend':
+			usrObj.suspend( myUser[0]["id"] )
+		elif args['varAction'] == 'reset_factors':
+			usrObj.reset_factors( myUser[0]["id"] )
+		elif args['varAction'] == 'unsuspend':
+			usrObj.unsuspend( myUser[0]["id"] )
+		elif args['varAction'] == 'setPassword':
+			usrObj.setPassword( myUser[0]["id"], args['varPassword'] )
+		elif args['varAction'] == 'setQuestion':
+			usrObj.setQuestion( myUser[0]["id"], args['varSecQ'], args['varSecA'] )
+		elif args['varAction'] == 'update':
+			usrObj.update( myUser[0]["id"], args['varProfile'] )
+		else:
+			print "Error! Action:" + args['varAction'] + " not found"
+			sys.exit(1)
+
+
+	r = httpRequestor( args['varAction'], usrObj )
+	return r
+
+def group_commandProc( args ):
+	grpObj = groups_apiRef( orgURL=ORG_URL )
+	if args['varAction'] == 'create':
+		grpObj.createGroup( args )
+	else:
+		grpObj.findGroup( args['varGroupName'] )
+		myGroup = httpRequestor( 'find', grpObj )
+
+		if args['varAction'] == "find":
+			print json.dumps( myGroup, sort_keys=True, indent=4, separators=( ',', ':' ) )
+		elif args['varAction'] == 'update':
+			grpObj.update( myGroup[0]["id"], args )
+		elif args['varAction'] == 'listUsers':
+			grpObj.listUsers( myGroup[0]["id"] )
+		elif args['varAction'] == 'addUser':
+			usrObj = users_apiRef( orgURL=ORG_URL )
+			usrObj.findUser( args['varUsername'] )
+			myUser = httpRequestor( 'find', usrObj )
+
+			grpObj.addUser( myGroup[0]["id"], myUser[0]["id"] )
+		elif args['varAction'] == 'removeUser':
+			usrObj = users_apiRef( orgURL=ORG_URL )
+			usrObj.findUser( args['varUsername'] )
+			myUser = httpRequestor( 'find', usrObj )
+
+			grpObj.removeUser( myGroup[0]["id"], myUser[0]["id"] )
+		elif args['varAction'] == 'delete':
+			grpObj.delete( myGroup[0]["id"] )
+		else:
+			print "Error! Action:" + args['varAction'] + " not found"
+			sys.exit(1)
+
+	r = httpRequestor( args['varAction'], grpObj )
+	return r
+
+def list_commandProc( args ):
+	if args['objectType'] == 'user':
+		usrObj = users_apiRef( orgURL=ORG_URL )
+		# pull in search criteria from args
+		# create apiRef for listUsers
+
+		r = httpRequestor( args['varAction'], usrObj )
+	elif args['objectType'] == 'group':
+		grpObj = groups_apiRef( orgURL=ORG_URL )
+		# pull in criteria from args
+		grpObj.listGroups()
+
+		r = httpRequestor( args['varAction'], grpObj )
+	elif args['objectType'] == 'app':
+		# appObj = app_apiRef( orgURL=ORG_URL )
+		# pull in search criteria from args
+		# create apiRef for listApps
+
+	return r
 
 def commandProc( args ):
 	if args['command'] == 'user':
-		if args['varAction'] == 'create':
-			apiCall = ORG_URL + '/api/v1/users?activate=' + str( args['varActivate'] )
-			r = requests.post( apiCall, headers=REQHEADERS, json=createUser_postBody( args ) )
-			print(r)
-		else:
-			myUser = findUser( args['varUsername'] )
-
-			if args['varAction'] == "find":
-				print json.dumps( myUser, sort_keys=True, indent=4, separators=( ',', ':' ) )
-			else:
-				r = httpRequestor( args, user_curlDict( args, myUser[0]["id"] ) )
-				try:
-					r.json()
-					print json.dumps( r.json(), indent=4, separators=( ',', ':' ) )
-					print r
-				except:
-					print(r)
-
+		r = user_commandProc( args )
 	elif args['command'] == 'group':
-		if args['varAction'] == 'create':
-			r = httpRequestor( args, groups_curlDict( args ) )
-			print(r)
-		else:
-			myGroup = findGroup( args['varGroupName'] )
-
-			if args['varAction'] == "find":
-				print json.dumps( myGroup, sort_keys=True, indent=4, separators=( ',', ':' ) )
-			elif args['varAction'] in ( 'addUser', 'removeUser' ):
-				if not args['varUsername']:
-					print "Error! Must specify user to add/remove"
-					sys.exit(1)
-				myUser = findUser( args['varUsername'] )
-				r = httpRequestor( args, groups_curlDict( args, myGroup[0]["id"], myUser[0]["id"] ) )
-				print(r)
-			else:
-				r = httpRequestor( args, groups_curlDict( args, myGroup[0]["id"] ) )
-				# Should add a CSV option
-				try:
-					r.json()
-					print json.dumps( r.json(), indent=4, separators=( ',', ':' ) )
-					print r
-				except:
-					print(r)
-
-def main():
-	myInputs = inputs()
-	
-	if not isinstance( myInputs, list ):
-		inputDict = myInputs.__dict__
-		commandProc( inputDict )
+		r = group_commandProc( args )
+	elif args['command'] == 'list':
+		r = list_commandProc( args )
 	else:
-		for i in myInputs:
-			commandProc( i )
-			
+		print "Error! Command not found"
+
+	try:
+		print json.dumps( r.json(), indent=4, separators=( ',', ':' ) )
+	except:
+		print(r)
+
+
 ### Main ###
-if __name__ == '__main__':
-    main()
+myInputs = inputs()
+
+if not isinstance( myInputs, list ):
+	inputDict = myInputs.__dict__
+	commandProc( inputDict )
+else:
+	for i in myInputs:
+		commandProc( i )
