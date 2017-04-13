@@ -9,7 +9,7 @@ class users_apiRef:
 	def __init__( self, orgURL ):
 		self.orgURL = orgURL
 
-	def createUser( self, args ):
+	def create( self, args ):
 		self.RequestType = 'Post'
 		self.APICall = self.orgURL + '/api/v1/users?activate=' + str( args['varActivate'] )
 		self.PostBody = self.createUser_postBody( args )
@@ -106,6 +106,7 @@ class users_apiRef:
 	def suspend( self, var_userID ):
 		self.RequestType = 'POST'
 		self.APICall = self.orgURL + '/api/v1/users/' + var_userID + '/lifecycle/suspend'
+		self.ConfirmationRequired = True
 
 	def reset_factors( self, var_userID ):
 		self.RequestType = 'POST'
@@ -114,6 +115,7 @@ class users_apiRef:
 	def unsuspend( self, var_userID ):
 		self.RequestType = 'POST'
 		self.APICall = self.orgURL + '/api/v1/users/' + var_userID + '/lifecycle/unsuspend'
+		self.ConfirmationRequired = True
 
 	def setPassword( self, var_userID, varPassword ):
 		self.RequestType = 'PUT'
@@ -144,15 +146,15 @@ class groups_apiRef:
 	def create( self, args ):
 		self.RequestType = 'POST'
 		self.APICall = self.orgURL + '/api/v1/groups'
-		self.PostBody = group_postBody( args )
+		self.PostBody = self.group_postBody( args )
 
-	def group_postBody( args ):
+	def group_postBody( self, args ):
 		return {"profile":{"name": args['varGroupName'],"description": args['varGroupDesc']}}
 
 	def update( self, var_groupID, args ):
 		self.RequestType = 'PUT'
 		self.APICall = self.orgURL + '/api/v1/groups/' + var_groupID
-		self.PostBody = group_postBody( args )
+		self.PostBody = self.group_postBody( args )
 
 	def listUsers( self, var_groupID ): # Needs pagination support for groups larger than 10k
 		self.RequestType = 'GET'
@@ -164,7 +166,7 @@ class groups_apiRef:
 
 	def addUser( self, var_groupID, var_userID ):
 		self.RequestType = 'PUT'
-		self.APICall = self.orgURL + + '/api/v1/groups/' + var_groupID + '/users/' + var_userID
+		self.APICall = self.orgURL + '/api/v1/groups/' + var_groupID + '/users/' + var_userID
 
 	def removeUser( self, var_groupID, var_userID ):
 		self.RequestType = 'DELETE'

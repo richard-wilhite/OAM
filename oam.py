@@ -137,7 +137,7 @@ def csvCommandList( args ):
 
 def httpRequestor( myAction, apiRef ):
 	try:
-		varContinue = actionConfirm( "This action: " + myAction + "  can not be undone. Are you sure you wish to continue?", apiRef.ConfirmationRequired )
+		varContinue = actionConfirm( "This action: " + myAction + " can not be undone. Are you sure you wish to continue?", apiRef.ConfirmationRequired )
 		if varContinue == False:
 			return "Action Cancelled"
 	except:
@@ -175,7 +175,7 @@ def actionConfirm( varQuestion, confirmRequired ):
 def user_commandProc( args ):
 	usrObj = users_apiRef( orgURL=ORG_URL )
 	if args['varAction'] == 'create':
-		usrObj.createUser( args )
+		usrObj.create( args )
 	else:
 		usrObj.findUser( args['varUsername'] )
 		myUser = httpRequestor( 'find', usrObj )
@@ -228,7 +228,7 @@ def user_commandProc( args ):
 def group_commandProc( args ):
 	grpObj = groups_apiRef( orgURL=ORG_URL )
 	if args['varAction'] == 'create':
-		grpObj.createGroup( args )
+		grpObj.create( args )
 	else:
 		grpObj.findGroup( args['varGroupName'] )
 		myGroup = httpRequestor( 'find', grpObj )
