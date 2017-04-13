@@ -273,7 +273,7 @@ def list_commandProc( args ):
 		grpObj.listGroups()
 
 		r = httpRequestor( args['varAction'], grpObj )
-	elif args['objectType'] == 'app':
+	# elif args['objectType'] == 'app':
 		# appObj = app_apiRef( orgURL=ORG_URL )
 		# pull in search criteria from args
 		# create apiRef for listApps
