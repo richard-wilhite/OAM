@@ -1,6 +1,8 @@
 #### OKTA_API_REF
 # This module returns the appropriate content for use with python http reqeusts module
 
+### Modules ###
+
 ### Classes ###
 class users_apiRef:
 	"""User"""
@@ -15,42 +17,39 @@ class users_apiRef:
 		self.PostBody = self.createUser_postBody( args )
 
 	def createUser_postBody( self, args ):
-		if not args['varFirstname'] and not args['varLastname']:
-			print("Error! Required field not provided.\nCreate action requires firstName and lastName attributes")
-			sys.exit(1)
+		if not args['varEmail']:
+			self.myVarEmail = args['varUsername']
 		else:
-			if not args['varEmail']:
-				myVarEmail = args['varUsername']
-			else:
-				myVarEmail = args['varEmail']
+			self.myVarEmail = args['varEmail']
 
-			myPostBody = {"profile": {"firstName": args['varFirstname'],"lastName": args['varLastname'],"email": myVarEmail,"login": args['varUsername']}}
-			
-			## Password Only ##
+		self.myPostBody = {"profile": {"firstName": args['varFirstname'],"lastName": args['varLastname'],"email": self.myVarEmail,"login": args['varUsername']}}
+		
+		if args['varPassword'] or args['varSecQ']:
+			self.myPostBody.update({"credentials":{}})
+			# Password Only ##
 			if args['varPassword'] and not args['varSecQ']:
-				myPostBody.update( password_postBody( args['varPassword'] ) )
+				self.myPostBody["credentials"].update( self.password_postBody( args['varPassword'] ) )
 			## Password and Security Question ##
 			elif args['varPassword'] and args['varSecQ']:
-				myPostBody.update( password_postBody( args['varPassword'] ) )
-				myPostBody["credentials"].update( recoveryQ_postBody( args['varSecQ'], args['varSecA'] ) )
+				self.myPostBody["credentials"].update( self.password_postBody( args['varPassword'] ) )
+				self.myPostBody["credentials"].update( self.recoveryQ_postBody( args['varSecQ'], args['varSecA'] ) )
 			## Security Question Only ##
 			elif args['varSecQ'] and not args['varPassword']:
-				myPostBody.update({"credentials"})
-				myPostBody.append( recoveryQ_postBody( args['varSecQ'], args['varSecA'] ) )
+				self.myPostBody["credentials"].update( self.recoveryQ_postBody( args['varSecQ'], args['varSecA'] ) )
 
-			return myPostBody
+		return self.myPostBody
 
 	def password_postBody( self, varPassword ):
-		return {"credentials": {"password" : { "value": varPassword }}}
+		return {"password" : { "value": varPassword }}
 
 	def recoveryQ_postBody( self, varSecQ, varSecA ):
-		return {"recovery_question": {"question": varSecQ,"answer": varSecA}}
+		return {"recovery_question": {"question": varSecQ,"answer": varSecA }}
 
 	def profileUpdate_postBody( self, varProfile ):
-		myPostBody = {}
-		myPostBody["profile"] = dict( varProfile[i:i+2] for i in range(0, len(varProfile), 2) )
+		self.myPostBody = {}
+		self.myPostBody["profile"] = dict( varProfile[i:i+2] for i in range(0, len(varProfile), 2) )
 
-		return myPostBody
+		return self.myPostBody
 
 	def findUser( self, searchParam ):
 		self.RequestType = 'GET'
@@ -120,12 +119,12 @@ class users_apiRef:
 	def setPassword( self, var_userID, varPassword ):
 		self.RequestType = 'PUT'
 		self.APICall = self.orgURL + '/api/v1/users/' + var_userID
-		self.PostBody = self.password_postBody( varPassword )
+		self.PostBody = { "credentials": self.password_postBody( varPassword ) }
 
 	def setQuestion( self, var_userID, varSecQ, varSecA ):
 		self.RequestType = 'PUT'
 		self.APICall = self.orgURL + '/api/v1/users/' + var_userID
-		self.PostBody = self.recoveryQ_postBody( varSecQ, varSecA )
+		self.PostBody = { "credentials": self.recoveryQ_postBody( varSecQ, varSecA ) }
 
 	def update( self, var_userID, varProfile ):
 		self.RequestType = 'POST'

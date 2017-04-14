@@ -11,7 +11,7 @@ import sys
 from okta_api_reference import users_apiRef, groups_apiRef
 
 ### Variables ###
-SCRIPT_VERSION = '0.3'
+SCRIPT_VERSION = '0.3.2'
 CONFIG_FILE = 'config.json' # Must be json
 ORG_URL = '' # Placeholder defined in configLoader function
 REQHEADERS = '' # Placeholder defined in configLoader function
@@ -137,7 +137,7 @@ def csvCommandList( args ):
 
 def httpRequestor( myAction, apiRef ):
 	try:
-		varContinue = actionConfirm( "This action: " + myAction + " can not be undone. Are you sure you wish to continue?", apiRef.ConfirmationRequired )
+		varContinue = actionConfirm( "This action: " + myAction + " has serious consequences. Are you sure you wish to continue?", apiRef.ConfirmationRequired )
 		if varContinue == False:
 			return "Action Cancelled"
 	except:
@@ -175,7 +175,11 @@ def actionConfirm( varQuestion, confirmRequired ):
 def user_commandProc( args ):
 	usrObj = users_apiRef( orgURL=ORG_URL )
 	if args['varAction'] == 'create':
-		usrObj.create( args )
+		if not args['varFirstname'] and not args['varLastname']:
+			print("Error! Required field not provided.\nCreate action requires firstName and lastName attributes")
+			sys.exit(1)
+		else:
+			usrObj.create( args )
 	else:
 		usrObj.findUser( args['varUsername'] )
 		myUser = httpRequestor( 'find', usrObj )
@@ -291,9 +295,12 @@ def commandProc( args ):
 		print "Error! Command not found"
 
 	try:
-		print json.dumps( r.json(), indent=4, separators=( ',', ':' ) )
+		if len( r.json() ) > 0:
+			print json.dumps( r.json(), indent=4, separators=( ',', ':' ) )
+		else:
+			print r
 	except:
-		print(r)
+		print r
 
 
 ### Main ###
