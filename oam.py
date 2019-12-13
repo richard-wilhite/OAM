@@ -11,7 +11,7 @@ import sys
 from okta_api_reference import users_apiRef, groups_apiRef
 
 ### Variables ###
-SCRIPT_VERSION = '0.3.2'
+SCRIPT_VERSION = '0.3.3'
 CONFIG_FILE = 'config.json' # Must be json
 ORG_URL = '' # Placeholder defined in configLoader function
 REQHEADERS = '' # Placeholder defined in configLoader function
@@ -29,30 +29,30 @@ def configLoader( fh, mySite=None ):
 			try:
 				data = json.load( objFile )
 			except:
-				print "Error loading " + CONFIG_FILE + " check json format"
+				print( "Error loading " + CONFIG_FILE + " check json format" )
 				sys.exit(1)
 
 		if mySite:
 			try:
 				data[mySite]["orgURL"]
 			except:
-				print "Error! Site '" + mySite + "' not found in " + CONFIG_FILE
+				print( "Error! Site '" + mySite + "' not found in " + CONFIG_FILE )
 				sys.exit(1)
 			if len(data[mySite]["orgURL"]) > 0 and len(data[mySite]["apiToken"]) > 0:
 				ORG_URL = data[mySite]["orgURL"]
 				REQHEADERS = { "Accept": "application/json", "Content-Type": "application/json", "Authorization": "SSWS " + data[mySite]["apiToken"] }
 			else:
-				print "Error! orgURL/apiToken not set for " + mySite + " in " + CONFIG_FILE
+				print( "Error! orgURL/apiToken not set for " + mySite + " in " + CONFIG_FILE )
 				sys.exit(1)
 		else:
 			if len(data["orgURL"]) > 0 and len(data["apiToken"]) > 0:
 				ORG_URL = data["orgURL"]
 				REQHEADERS = { "Accept": "application/json", "Content-Type": "application/json", "Authorization": "SSWS " + data["apiToken"] }
 			else:
-				print "Error! orgURL/apiToken not set in " + CONFIG_FILE
+				print( "Error! orgURL/apiToken not set in " + CONFIG_FILE )
 				sys.exit(1)
 	else:
-		print "Error! " + CONFIG_FILE + " not found. Check CONFIG_FILE variable in oam.py"
+		print( "Error! " + CONFIG_FILE + " not found. Check CONFIG_FILE variable in oam.py" )
 		sys.exit(1)
 
 def inputs():
@@ -156,7 +156,7 @@ def httpRequestor( myAction, apiRef ):
 		if len( r.json() ) == 1:
 			return r.json()
 		else:
-			print "Error: " + apiRef.__doc__ + " not found"
+			print( "Error: " + apiRef.__doc__ + " not found" )
 			sys.exit(0)
 	else:
 		return r
@@ -185,7 +185,7 @@ def user_commandProc( args ):
 		myUser = httpRequestor( 'find', usrObj )
 
 		if args['varAction'] == "find":
-			print json.dumps( myUser, sort_keys=True, indent=4, separators=( ',', ':' ) )
+			print( json.dumps( myUser, sort_keys=True, indent=4, separators=( ',', ':' ) ))
 			sys.exit(0)
 		elif args['varAction'] == 'appLinks':
 			usrObj.appLinks( myUser[0]["id"] )
@@ -222,7 +222,7 @@ def user_commandProc( args ):
 		elif args['varAction'] == 'update':
 			usrObj.update( myUser[0]["id"], args['varProfile'] )
 		else:
-			print "Error! Action:" + args['varAction'] + " not found"
+			print( "Error! Action:" + args['varAction'] + " not found" )
 			sys.exit(1)
 
 
@@ -238,7 +238,7 @@ def group_commandProc( args ):
 		myGroup = httpRequestor( 'find', grpObj )
 
 		if args['varAction'] == "find":
-			print json.dumps( myGroup, sort_keys=True, indent=4, separators=( ',', ':' ) )
+			print( json.dumps( myGroup, sort_keys=True, indent=4, separators=( ',', ':' ) ))
 		elif args['varAction'] == 'update':
 			grpObj.update( myGroup[0]["id"], args )
 		elif args['varAction'] == 'listUsers':
@@ -258,7 +258,7 @@ def group_commandProc( args ):
 		elif args['varAction'] == 'delete':
 			grpObj.delete( myGroup[0]["id"] )
 		else:
-			print "Error! Action:" + args['varAction'] + " not found"
+			print( "Error! Action:" + args['varAction'] + " not found" )
 			sys.exit(1)
 
 	r = httpRequestor( args['varAction'], grpObj )
@@ -292,15 +292,15 @@ def commandProc( args ):
 	elif args['command'] == 'list':
 		r = list_commandProc( args )
 	else:
-		print "Error! Command not found"
+		print( "Error! Command not found" )
 
 	try:
 		if len( r.json() ) > 0:
-			print json.dumps( r.json(), indent=4, separators=( ',', ':' ) )
+			print( json.dumps( r.json(), indent=4, separators=( ',', ':' ) ))
 		else:
-			print r
+			print(r)
 	except:
-		print r
+		print(r)
 
 
 ### Main ###
